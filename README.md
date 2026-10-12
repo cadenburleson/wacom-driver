@@ -7,6 +7,9 @@ It reads the tablet's raw USB reports and posts the pen as real tablet events, s
 absolute positioning, pressure and eraser detection. It runs entirely in user space: no
 kernel or system extension, no network access, and nothing is written to the tablet.
 
+**[Download WacomDriver](https://github.com/cadenburleson/wacom-driver/releases/latest/download/WacomDriver.dmg)**
+for macOS 13 or later, then see [Install](#install).
+
 This is an unofficial project and is not affiliated with or endorsed by Wacom. "Wacom" and
 "Intuos" are trademarks of Wacom Co., Ltd.
 
@@ -30,9 +33,10 @@ untested.
 
 1. Uninstall Wacom's own driver if you have it (Wacom Tablet Utility → Uninstall), or the two
    will fight over the tablet.
-2. Download `WacomDriver.zip` from the
-   [latest release](https://github.com/cadenburleson/wacom-driver/releases/latest) and unzip it.
-3. Move **WacomDriver** to your Applications folder and open it.
+2. Download
+   [WacomDriver.dmg](https://github.com/cadenburleson/wacom-driver/releases/latest/download/WacomDriver.dmg)
+   and open it.
+3. Drag **WacomDriver** onto the Applications folder next to it, then open it from Applications.
 4. When macOS asks, turn on **WacomDriver** in System Settings → Privacy & Security →
    Accessibility. The driver needs this to move the cursor.
 

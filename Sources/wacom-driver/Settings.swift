@@ -14,10 +14,13 @@ enum SettingsApp {
         app.setActivationPolicy(.regular)
         app.activate(ignoringOtherApps: true)
 
-        // A freshly downloaded app runs from a random read-only path until it is moved.
-        if Bundle.main.bundlePath.contains("/AppTranslocation/") {
+        // The login item points at this copy, so it has to be one that stays. A freshly downloaded
+        // app runs from a random read-only path until it is moved, and one opened straight from
+        // the disk image goes away when the image is ejected.
+        let volume = try? Bundle.main.bundleURL.resourceValues(forKeys: [.volumeIsReadOnlyKey])
+        if Bundle.main.bundlePath.contains("/AppTranslocation/") || volume?.volumeIsReadOnly == true {
             alert("Move WacomDriver to Applications first",
-                  "macOS is running this copy from a temporary location. Drag WacomDriver into your Applications folder, then open it from there.")
+                  "WacomDriver starts itself when you log in, so it has to stay where it is. Drag it into your Applications folder, then open it from there.")
             exit(0)
         }
         if LoginItem.isCurrent {
