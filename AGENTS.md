@@ -129,7 +129,10 @@ The reference for every Wacom protocol is the Linux kernel driver. Fetch
    ```
 
    It prints every raw report in hex and, indented beneath it, whatever the decoder made of
-   it. It needs no permissions and can run next to the installed driver. Ask the person for
+   it. It needs no permissions and can run next to the installed driver. A report starting
+   `c0` every five seconds is the tablet's status heartbeat, not pen data. If you start the
+   dump in the background, stop it with plain `kill`: shells make background jobs ignore
+   SIGINT, so `kill -INT` leaves it running. Ask the person for
    one action at a time and compare: hover in the top-left corner (x and y near 0), then the
    bottom-right (near 1), press lightly then hard (pressure rising towards 1), each side
    switch, each ExpressKey, pen away from the tablet (`leave`).
