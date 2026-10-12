@@ -7,7 +7,7 @@ let usage = """
 usage: wacom-driver <command>
 
   --run         run the driver in the foreground
-  --dump        print the tablet's raw reports instead of moving the cursor
+  --dump        print the tablet's raw reports and what they decode to
   --install     start the driver now and at every login
   --uninstall   stop the driver and remove it from login
 
@@ -43,7 +43,11 @@ default:
 let tablet = Tablet()
 tablet.dump = arguments.first == "--dump"
 
-if !tablet.dump {
+if tablet.dump {
+    // Show what each report decodes to, so a decoder can be checked without Accessibility.
+    tablet.onPen = { print("  \($0)") }
+    tablet.onKeys = { print("  keys \($0)") }
+} else {
     // Posting events needs Accessibility. A running process never sees the grant arrive, so
     // re-exec until a fresh check passes, prompting only the first time round.
     let waiting = arguments.contains("--waiting")
@@ -64,16 +68,4 @@ if !tablet.dump {
 }
 
 tablet.start()
-
-let signals = [SIGINT, SIGTERM].map { number in
-    signal(number, SIG_IGN)
-    let source = DispatchSource.makeSignalSource(signal: number, queue: .main)
-    source.setEventHandler {
-        tablet.stop()
-        exit(0)
-    }
-    source.resume()
-    return source
-}
-
 CFRunLoopRun()

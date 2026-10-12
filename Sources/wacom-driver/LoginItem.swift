@@ -43,7 +43,7 @@ enum LoginItem {
         throw Failure(errorDescription: "launchd would not start the driver.")
     }
 
-    /// Stops the driver, which puts the tablet back in its built-in mouse mode.
+    /// Stops the driver. The tablet stays in pen mode, and so does nothing, until it is replugged.
     static func uninstall() {
         launchctl("bootout", "\(domain)/\(label)")
         try? FileManager.default.removeItem(at: agentURL)
@@ -82,7 +82,8 @@ enum LoginItem {
             NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
         case .alertThirdButtonReturn:
             uninstall()
-            alert("WacomDriver is uninstalled", "You can now move it to the Trash.")
+            alert("WacomDriver is uninstalled",
+                  "You can now move it to the Trash. Unplug the tablet and plug it back in to use it as a basic mouse.")
         default:
             break
         }

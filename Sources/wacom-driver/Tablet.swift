@@ -39,15 +39,16 @@ final class Tablet {
 
     private let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
     private var model: Model?
-    /// The pen interface and the mode it was in before we changed it.
-    private var pen: (device: IOHIDDevice, mode: UInt8)?
+    /// The pen interface, kept to notice when the tablet is unplugged.
+    private var pen: IOHIDDevice?
 
     // Interface 0 carries the pen, interface 1 the ExpressKeys (and touch on CTH models).
     private static let penUsagePage = 0xFF0D
     private static let padUsagePage = 0xFF00
     // Feature report 2 selects the mode: 2 sends pen reports instead of emulating a mouse.
-    private static let modeReport: UInt8 = 2
-    private static let wacomMode: UInt8 = 2
+    // Reading the report back does not return the mode, so there is nothing to restore on
+    // exit; the tablet goes back to mouse emulation when it is replugged.
+    private static let penMode: [UInt8] = [2, 2]
 
     func start() {
         let matching = [Tablet.penUsagePage, Tablet.padUsagePage].map {
@@ -74,13 +75,6 @@ final class Tablet {
         }
     }
 
-    /// Puts the tablet back in the mode we found it in, so it still works as a mouse without us.
-    func stop() {
-        guard let pen else { return }
-        setMode(pen.mode, on: pen.device)
-        self.pen = nil
-    }
-
     private func attached(_ device: IOHIDDevice) {
         let productID = IOHIDDeviceGetProperty(device, kIOHIDProductIDKey as CFString) as? Int ?? 0
         guard let model = models[productID] else {
@@ -91,31 +85,22 @@ final class Tablet {
         let usagePage = IOHIDDeviceGetProperty(device, kIOHIDPrimaryUsagePageKey as CFString) as? Int
         guard usagePage == Tablet.penUsagePage else { return }
 
-        var current: [UInt8] = [Tablet.modeReport, 0]
-        var length = current.count
-        let read = IOHIDDeviceGetReport(device, kIOHIDReportTypeFeature, CFIndex(Tablet.modeReport), &current, &length)
-        pen = (device, read == kIOReturnSuccess ? current[1] : 0)
-        if setMode(Tablet.wacomMode, on: device) {
+        pen = device
+        let mode = Tablet.penMode
+        let result = IOHIDDeviceSetReport(device, kIOHIDReportTypeFeature, CFIndex(mode[0]), mode, mode.count)
+        if result == kIOReturnSuccess {
             print("\(model.name) connected.")
+        } else {
+            print("Could not switch the tablet to pen mode (\(hex(result))).")
         }
     }
 
     private func removed(_ device: IOHIDDevice) {
-        guard device == pen?.device else { return }
+        guard device == pen else { return }
         pen = nil
         onPen(.leave)
         onKeys(0)
         print("Tablet disconnected.")
-    }
-
-    @discardableResult
-    private func setMode(_ mode: UInt8, on device: IOHIDDevice) -> Bool {
-        let report = [Tablet.modeReport, mode]
-        let result = IOHIDDeviceSetReport(device, kIOHIDReportTypeFeature, CFIndex(Tablet.modeReport), report, report.count)
-        if result != kIOReturnSuccess {
-            print("Could not set tablet mode \(mode) (\(hex(result))).")
-        }
-        return result == kIOReturnSuccess
     }
 
     private func received(_ report: UnsafeBufferPointer<UInt8>) {

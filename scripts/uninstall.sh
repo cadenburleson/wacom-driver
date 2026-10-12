@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# Undoes scripts/install.sh. The tablet goes back to its built-in mouse mode.
+# Undoes scripts/install.sh. Replug the tablet afterwards to use it as a basic mouse.
 set -euo pipefail
 
 APP="$HOME/Applications/WacomDriver.app"

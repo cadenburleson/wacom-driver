@@ -38,7 +38,18 @@ untested.
 
 The driver then runs in the background and starts whenever you log in. To update, replace the
 app with the new version and open it once. To uninstall, open the app and choose
-**Uninstall**, then move it to the Trash.
+**Uninstall**, then move it to the Trash and replug the tablet.
+
+### With an AI assistant
+
+If you use a coding assistant such as Claude Code, it can do the setup for you, and add
+support for a tablet that is not on the list. Give it this:
+
+> Clone https://github.com/cadenburleson/wacom-driver, read AGENTS.md, and set the driver up
+> for my Wacom tablet. If my tablet is not supported yet, follow the guide to add it.
+
+[AGENTS.md](AGENTS.md) tells it how the driver works, how to decode a new tablet, and which
+steps it needs you for.
 
 ## Settings
 
@@ -79,7 +90,8 @@ scripts/install.sh
 ```
 
 This builds `WacomDriver.app`, copies it to `~/Applications` and starts it;
-`scripts/uninstall.sh` reverses that. Without a Developer ID certificate the app is signed
+`scripts/uninstall.sh` reverses that. Until the tablet is replugged it stays in pen mode, so
+it does nothing while no driver is running. Without a Developer ID certificate the app is signed
 ad hoc, and macOS asks for Accessibility again after every rebuild.
 
 `sudo scripts/remove-official-driver.sh` removes Wacom's driver if its own uninstaller is
@@ -89,11 +101,11 @@ missing or broken.
 
 - **The pen does nothing:** check that WacomDriver is turned on under Accessibility, then
   open the app again to restart the driver.
-- **The pen works as a slow, relative mouse:** the driver is not running, and the tablet has
-  fallen back to its built-in mouse mode. Open the app.
+- **The pen only works as a basic mouse, with no pressure:** the driver is not running. Open
+  the app.
 - **Logs:** `~/Library/Logs/wacom-driver.log`.
 - **Raw reports:** from a source checkout, `swift run wacom-driver --dump` prints what a
-  supported tablet sends.
+  supported tablet sends and how the driver decodes it.
 
 ## Other tablets
 
