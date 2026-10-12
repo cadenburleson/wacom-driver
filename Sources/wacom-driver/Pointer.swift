@@ -45,6 +45,8 @@ final class Pointer {
         // A modifier held by an ExpressKey must not outlive the binding that held it.
         heldFlags = []
         keysDown = 0
+        // The pen may be over the tablet while its display is being changed.
+        bounds = targetBounds()
     }
 
     func handle(_ event: PenEvent) {
@@ -128,11 +130,17 @@ final class Pointer {
                        y: bounds.minY + min(max(v, 0), 1) * (bounds.height - 1))
     }
 
-    private func targetBounds() -> CGRect {
+    /// The displays `Config.display` counts through; the main one comes first.
+    static var displays: [CGDirectDisplayID] {
         var displays = [CGDirectDisplayID](repeating: 0, count: 16)
         var count: UInt32 = 0
         CGGetActiveDisplayList(UInt32(displays.count), &displays, &count)
-        return CGDisplayBounds(config.display < Int(count) ? displays[config.display] : CGMainDisplayID())
+        return Array(displays.prefix(Int(count)))
+    }
+
+    private func targetBounds() -> CGRect {
+        let displays = Pointer.displays
+        return CGDisplayBounds(displays.indices.contains(config.display) ? displays[config.display] : CGMainDisplayID())
     }
 
     private func post(_ type: CGEventType, button: CGMouseButton, pressure: Double, delta: CGPoint = .zero, clicks: Int) {

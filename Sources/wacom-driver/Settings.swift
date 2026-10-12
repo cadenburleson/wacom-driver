@@ -4,7 +4,7 @@ import SwiftUI
 import notify
 
 /// What opening the app does: makes sure the driver is running, then shows a window for
-/// choosing what the tablet's buttons do.
+/// its settings.
 enum SettingsApp {
     private static let delegate = AppDelegate()
 
@@ -89,6 +89,13 @@ final class SettingsModel: ObservableObject {
     @Published private(set) var recording: Int?
     @Published private(set) var tabletName: String?
     @Published private(set) var trusted = LoginItem.isTrusted
+    /// Names of the displays the tablet can map to, in the order the driver numbers them.
+    @Published private(set) var displays = SettingsModel.displayNames()
+
+    /// Slider stops either side of the middle of the tip feel slider.
+    static let tipFeelSteps = 3.0
+    /// The pressure curve exponent at the firm end; the soft end is its inverse.
+    private static let firmestGamma = 2.5
 
     // Our own connection to the tablet, used only to show which button is being pressed.
     private let tablet = Tablet()
@@ -98,6 +105,10 @@ final class SettingsModel: ObservableObject {
         tablet.onKeys = { [weak self] in self?.pressed = $0 }
         tablet.onConnection = { [weak self] in self?.tabletName = $0 }
         tablet.start()
+        NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
+                                               object: nil, queue: .main) { [weak self] _ in
+            self?.displays = SettingsModel.displayNames()
+        }
         if !trusted {
             Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
                 guard LoginItem.isTrusted else { return }
@@ -129,6 +140,26 @@ final class SettingsModel: ObservableObject {
                 self.config.penButtons = buttons
                 self.save()
             })
+    }
+
+    /// A control's connection to one setting, saved whenever the control changes it.
+    func setting<Value>(_ key: WritableKeyPath<Config, Value>) -> Binding<Value> {
+        Binding(get: { self.config[keyPath: key] }, set: { self.config[keyPath: key] = $0; self.save() })
+    }
+
+    /// The display the driver is using: the main one while the chosen display is unplugged.
+    var display: Binding<Int> {
+        let chosen = setting(\.display)
+        return Binding(get: { self.displays.indices.contains(chosen.wrappedValue) ? chosen.wrappedValue : 0 },
+                       set: { chosen.wrappedValue = $0 })
+    }
+
+    /// The pressure curve as a slider position, from soft at `-tipFeelSteps` to firm at `tipFeelSteps`.
+    var tipFeel: Binding<Double> {
+        let gamma = setting(\.pressureGamma)
+        let steps = SettingsModel.tipFeelSteps, firmest = SettingsModel.firmestGamma
+        return Binding(get: { min(max((steps * log(max(gamma.wrappedValue, 0.01)) / log(firmest)).rounded(), -steps), steps) },
+                       set: { gamma.wrappedValue = (pow(firmest, $0 / steps) * 100).rounded() / 100 })
     }
 
     /// Starts or cancels recording a shortcut for a tablet button.
@@ -176,6 +207,17 @@ final class SettingsModel: ObservableObject {
         SettingsApp.alert("WacomDriver is uninstalled",
                           "You can now move it to the Trash. Unplug the tablet and plug it back in to use it as a basic mouse.")
         NSApp.terminate(nil)
+    }
+
+    private static func displayNames() -> [String] {
+        let names = Pointer.displays.map { display in
+            NSScreen.screens.first { $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID == display }?
+                .localizedName ?? "Display"
+        }
+        // Two monitors of the same model would otherwise read the same.
+        return names.enumerated().map { index, name in
+            names.filter { $0 == name }.count > 1 ? "\(name) (\(index + 1))" : name
+        }
     }
 
     private func stopRecording() {
@@ -232,7 +274,14 @@ private struct SettingsView: View {
                 } footer: {
                     Text("Press a button on the tablet to see which row it is. To change one, click its shortcut and type the keys, or press and release a modifier key on its own to have the button hold it.")
                 }
-                Section("Pen buttons") {
+                Section("Pen") {
+                    Slider(value: model.tipFeel, in: -SettingsModel.tipFeelSteps...SettingsModel.tipFeelSteps, step: 1) {
+                        Text("Tip feel")
+                    } minimumValueLabel: {
+                        Text("Soft")
+                    } maximumValueLabel: {
+                        Text("Firm")
+                    }
                     ForEach(0..<2, id: \.self) { index in
                         Picker(index == 0 ? "Lower button" : "Upper button", selection: model.penButton(index)) {
                             Text("Right click").tag("right")
@@ -240,6 +289,18 @@ private struct SettingsView: View {
                             Text("Nothing").tag("none")
                         }
                     }
+                }
+                Section {
+                    Picker("Display", selection: model.display) {
+                        ForEach(model.displays.indices, id: \.self) { index in
+                            Text(model.displays[index]).tag(index)
+                        }
+                    }
+                    Toggle("Left-handed", isOn: model.setting(\.leftHanded))
+                } header: {
+                    Text("Mapping")
+                } footer: {
+                    Text("Turn on Left-handed to use the tablet rotated 180°.")
                 }
             }
             .formStyle(.grouped)
@@ -253,7 +314,8 @@ private struct SettingsView: View {
             }
             .padding([.horizontal, .bottom], 20)
         }
-        .frame(width: 480, height: model.trusted ? 540 : 610)
+        // The form scrolls when the screen is too short to show all of it.
+        .frame(width: 480, height: min(model.trusted ? 720 : 790, (NSScreen.main?.visibleFrame.height ?? .infinity) - 40))
     }
 }
 

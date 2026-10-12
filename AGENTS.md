@@ -64,13 +64,13 @@ Ask before removing Wacom's driver; it deletes their software.
    is not done. Then ask the person to draw something and confirm pressure works.
 
 Settings live in `~/.config/wacom-driver/config.json`; the README documents every key. Opening
-the app shows a window for the button settings. The running driver rereads the file when that
+the app shows a window for most of them. The running driver rereads the file when that
 window opens or saves; after editing the file yourself, tell it to with
 `notifyutil -p com.cadenburleson.wacom-driver.config-changed`.
 
 ## How the code is laid out
 
-One Swift package, no dependencies, under 1,000 lines.
+One Swift package, no dependencies, about 1,000 lines.
 
 | File | Job |
 | --- | --- |

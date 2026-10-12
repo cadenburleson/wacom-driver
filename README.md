@@ -54,19 +54,22 @@ steps it needs you for.
 
 ## Settings
 
-Open WacomDriver to choose what the buttons do.
+Open WacomDriver to change how the tablet behaves.
 
 <img src="docs/settings.png" width="480" alt="The WacomDriver settings window">
 
 - **Tablet buttons:** press a button on the tablet and its row lights up, so you can tell
   which is which. Click a row's shortcut and type the keys you want. Pressing and releasing
   a modifier key on its own (Shift, say) makes the button hold that modifier while it is down.
-- **Pen buttons:** each side switch can be a right click, a middle click or nothing.
+- **Pen:** *Tip feel* sets how hard you have to press: soft needs less force for the same
+  line, firm needs more. Each side switch can be a right click, a middle click or nothing.
+- **Mapping:** which display the tablet covers, and *Left-handed* for using the tablet
+  rotated 180°.
 
 Changes apply straight away.
 
-The window edits `~/.config/wacom-driver/config.json`, which also holds the settings that
-have no control yet. Defaults:
+The window edits `~/.config/wacom-driver/config.json`, which also holds two settings that
+have no control yet, `keepAspect` and `tipThreshold`. Defaults:
 
 ```json
 {
@@ -84,7 +87,8 @@ have no control yet. Defaults:
 - `leftHanded`: rotate the tablet 180°.
 - `keepAspect`: use only the part of the tablet that matches the screen's shape, so circles
   stay round.
-- `pressureGamma`: below 1 makes the pen softer, above 1 firmer.
+- `pressureGamma`: below 1 makes the pen softer, above 1 firmer. The slider runs from 0.4
+  to 2.5.
 - `tipThreshold`: how hard the tip must press, from 0 to 1, before it counts as a click.
 - `penButtons`: lower and upper side switch; `"right"`, `"middle"` or `"none"`.
 - `expressKeys`: the tablet's four buttons. Each is a key combination (`"cmd+shift+z"`,
