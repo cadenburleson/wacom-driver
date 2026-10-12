@@ -3,10 +3,13 @@ import AppKit
 
 /// Turns pen samples into the mouse and tablet events macOS apps expect from a pen tablet.
 final class Pointer {
-    private let config: Config
+    /// Marks the keystrokes sent for ExpressKeys, so the settings window can tell them from typing.
+    static let eventMarker: Int64 = 0x5741_4344
+
+    private var config: Config
     private let source = CGEventSource(stateID: .hidSystemState)
-    private let sideSwitches: [Int?]
-    private let bindings: [KeyBinding?]
+    private var sideSwitches: [Int?] = []
+    private var bindings: [KeyBinding?] = []
 
     private var inProximity = false
     private var tool = (eraser: false, id: 0x802, serial: 0)
@@ -31,8 +34,17 @@ final class Pointer {
 
     init(config: Config) {
         self.config = config
+        apply(config)
+    }
+
+    /// Adopts new settings while running.
+    func apply(_ config: Config) {
+        self.config = config
         sideSwitches = config.penButtons.map { ["right": 1, "middle": 2][$0.lowercased()] }
         bindings = config.expressKeys.map(KeyBinding.init)
+        // A modifier held by an ExpressKey must not outlive the binding that held it.
+        heldFlags = []
+        keysDown = 0
     }
 
     func handle(_ event: PenEvent) {
@@ -157,17 +169,18 @@ final class Pointer {
     }
 
     private func key(_ binding: KeyBinding, down: Bool) {
+        let event: CGEvent?
         if let code = binding.key {
-            let event = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: down)
+            event = CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: down)
             event?.flags.formUnion(binding.flags)
-            event?.post(tap: .cghidEventTap)
         } else {
             // Bare modifiers are held, and applied to the pen's own events as well.
             if down { heldFlags.formUnion(binding.flags) } else { heldFlags.subtract(binding.flags) }
-            let event = CGEvent(keyboardEventSource: source, virtualKey: binding.modifierKey, keyDown: down)
+            event = CGEvent(keyboardEventSource: source, virtualKey: binding.modifierKey, keyDown: down)
             event?.type = .flagsChanged
             event?.flags = heldFlags
-            event?.post(tap: .cghidEventTap)
         }
+        event?.setIntegerValueField(.eventSourceUserData, value: Pointer.eventMarker)
+        event?.post(tap: .cghidEventTap)
     }
 }

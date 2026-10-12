@@ -63,20 +63,23 @@ Ask before removing Wacom's driver; it deletes their software.
    `Intuos Draw S (CTL-490) connected.` A last line of `Waiting for permission` means step 4
    is not done. Then ask the person to draw something and confirm pressure works.
 
-Settings live in `~/.config/wacom-driver/config.json`; the README documents every key. After
-changing them, run `wacom-driver --install` again to restart the driver.
+Settings live in `~/.config/wacom-driver/config.json`; the README documents every key. Opening
+the app shows a window for the button settings. The running driver rereads the file when that
+window opens or saves; after editing the file yourself, tell it to with
+`notifyutil -p com.cadenburleson.wacom-driver.config-changed`.
 
 ## How the code is laid out
 
-One Swift package, no dependencies, about 600 lines.
+One Swift package, no dependencies, under 1,000 lines.
 
 | File | Job |
 | --- | --- |
 | `Tablet.swift` | Finds the tablet with IOHIDManager, switches it out of mouse emulation, decodes raw reports into `PenEvent`s and an ExpressKey bitmask. All tablet-specific knowledge is here. |
 | `Pointer.swift` | Turns `PenEvent`s into `CGEvent` mouse and tablet events: screen mapping, pressure curve, clicks, proximity. Knows nothing about USB. |
 | `Config.swift` | The settings file and key-combination parsing. |
-| `LoginItem.swift` | Installs and removes the LaunchAgent, and the dialog shown when the app is opened. |
-| `main.swift` | Command-line dispatch and the Accessibility wait. |
+| `LoginItem.swift` | Installs and removes the LaunchAgent that keeps the driver running. |
+| `Settings.swift` | The SwiftUI window shown when the app is opened. A separate process from the driver: it saves the settings file and posts a notification. |
+| `main.swift` | Command-line dispatch, the Accessibility wait, and reloading settings. |
 
 Data flows one way: HID report → `Tablet.received` → `PenEvent` → `Pointer.handle` → `CGEvent`.
 A new tablet should only need changes in `Tablet.swift`.
@@ -170,6 +173,10 @@ Each of these cost time to find out.
   so with no driver running the pen does nothing at all. The driver cannot put the old mode
   back on exit: reading feature report 2 does not return the mode (this family always answers
   `0x10`), so there is no known value to restore.
+- **Checking the window without seeing the screen.** Screen capture needs a permission you
+  probably lack. Build a small harness that hosts `SettingsView` in a window and saves
+  `contentView.cacheDisplay(in:to:)` as a PNG; `NSApp.postEvent` feeds it key presses. Set
+  `CFFIXED_USER_HOME` to a scratch folder so it does not overwrite the person's settings.
 - **launchd needs a moment.** `launchctl bootstrap` straight after `bootout` fails while the old
   instance is shutting down, so `LoginItem.install` retries.
 - **Logs.** The installed driver writes to `~/Library/Logs/wacom-driver.log`.

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import notify
 
 setvbuf(stdout, nil, _IOLBF, 0)
 
@@ -11,8 +12,8 @@ usage: wacom-driver <command>
   --install     start the driver now and at every login
   --uninstall   stop the driver and remove it from login
 
-Opening WacomDriver.app does the same as --install.
-Settings are read from \(Config.url.path).
+Opening WacomDriver.app installs the driver and shows its settings.
+The settings are stored in \(Config.url.path).
 """
 
 let arguments = Array(CommandLine.arguments.dropFirst())
@@ -32,12 +33,20 @@ case "--uninstall":
     LoginItem.uninstall()
     print("WacomDriver is uninstalled.")
     exit(0)
+case "--trusted":
+    // Internal: lets the settings window ask a fresh process whether Accessibility is granted.
+    exit(AXIsProcessTrusted() ? 0 : 1)
 case nil where Bundle.main.bundleURL.pathExtension == "app":
-    LoginItem.showManager()
-    exit(0)
+    SettingsApp.run()
 default:
     print(usage)
     exit(arguments.first == "--help" ? 0 : 64)
+}
+
+/// Changes when the app on disk is replaced by an update.
+func executableStamp() -> String {
+    let attributes = try? FileManager.default.attributesOfItem(atPath: Bundle.main.executablePath ?? "")
+    return "\(attributes?[.systemFileNumber] ?? 0) \(attributes?[.modificationDate] ?? 0)"
 }
 
 let tablet = Tablet()
@@ -65,6 +74,16 @@ if tablet.dump {
     let pointer = Pointer(config: Config.load())
     tablet.onPen = pointer.handle
     tablet.onKeys = pointer.handleKeys
+
+    // Sent by the settings window whenever it opens or saves a change.
+    let stamp = executableStamp()
+    var token: Int32 = 0
+    notify_register_dispatch(Config.changedNotification, &token, .main) { _ in
+        // Make way for an updated app; launchd starts the new copy straight away.
+        if executableStamp() != stamp { exit(0) }
+        pointer.apply(Config.load())
+        print("Settings reloaded.")
+    }
 }
 
 tablet.start()

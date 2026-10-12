@@ -35,7 +35,11 @@ final class Tablet {
     var onPen: (PenEvent) -> Void = { _ in }
     /// Bitmask of the ExpressKeys currently held.
     var onKeys: (UInt8) -> Void = { _ in }
+    /// The model's name when a tablet connects, nil when it is unplugged.
+    var onConnection: (String?) -> Void = { _ in }
     var dump = false
+
+    static let expressKeyCount = 4
 
     private let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
     private var model: Model?
@@ -90,6 +94,7 @@ final class Tablet {
         let result = IOHIDDeviceSetReport(device, kIOHIDReportTypeFeature, CFIndex(mode[0]), mode, mode.count)
         if result == kIOReturnSuccess {
             print("\(model.name) connected.")
+            onConnection(model.name)
         } else {
             print("Could not switch the tablet to pen mode (\(hex(result))).")
         }
@@ -100,6 +105,7 @@ final class Tablet {
         pen = nil
         onPen(.leave)
         onKeys(0)
+        onConnection(nil)
         print("Tablet disconnected.")
     }
 

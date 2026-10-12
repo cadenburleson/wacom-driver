@@ -36,9 +36,10 @@ untested.
 4. When macOS asks, turn on **WacomDriver** in System Settings → Privacy & Security →
    Accessibility. The driver needs this to move the cursor.
 
-The driver then runs in the background and starts whenever you log in. To update, replace the
-app with the new version and open it once. To uninstall, open the app and choose
-**Uninstall**, then move it to the Trash and replug the tablet.
+The driver then runs in the background and starts whenever you log in; opening the app again
+shows its settings. To update, replace the app with the new version and open it once. To
+uninstall, open the app and choose **Uninstall…**, then move it to the Trash and replug the
+tablet.
 
 ### With an AI assistant
 
@@ -53,7 +54,19 @@ steps it needs you for.
 
 ## Settings
 
-Optional, in `~/.config/wacom-driver/config.json`. Defaults:
+Open WacomDriver to choose what the buttons do.
+
+<img src="docs/settings.png" width="480" alt="The WacomDriver settings window">
+
+- **Tablet buttons:** press a button on the tablet and its row lights up, so you can tell
+  which is which. Click a row's shortcut and type the keys you want. Pressing and releasing
+  a modifier key on its own (Shift, say) makes the button hold that modifier while it is down.
+- **Pen buttons:** each side switch can be a right click, a middle click or nothing.
+
+Changes apply straight away.
+
+The window edits `~/.config/wacom-driver/config.json`, which also holds the settings that
+have no control yet. Defaults:
 
 ```json
 {
@@ -77,7 +90,7 @@ Optional, in `~/.config/wacom-driver/config.json`. Defaults:
 - `expressKeys`: the tablet's four buttons. Each is a key combination (`"cmd+shift+z"`,
   `"space"`) or bare modifiers (`"shift"`) that are held while the button is down.
 
-Open WacomDriver again to apply changes.
+After editing the file by hand, open WacomDriver to apply it.
 
 ## Build from source
 

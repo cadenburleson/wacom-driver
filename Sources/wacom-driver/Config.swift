@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import CoreGraphics
 import Foundation
+import notify
 
 /// User settings, read from ~/.config/wacom-driver/config.json. Every key is optional.
-struct Config: Decodable {
+struct Config: Codable {
     /// Index into the active display list; 0 is the main display.
     var display = 0
     /// Rotate the tablet 180° (cable on the right).
@@ -21,6 +22,8 @@ struct Config: Decodable {
 
     static let url = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".config/wacom-driver/config.json")
+    /// Darwin notification that tells the running driver to read the file again.
+    static let changedNotification = "com.cadenburleson.wacom-driver.config-changed"
 
     init() {}
 
@@ -48,6 +51,15 @@ struct Config: Decodable {
             return Config()
         }
     }
+
+    /// Writes the file and has the running driver pick it up.
+    func save() throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        try FileManager.default.createDirectory(at: Config.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try encoder.encode(self).write(to: Config.url, options: .atomic)
+        notify_post(Config.changedNotification)
+    }
 }
 
 /// A key combination such as "cmd+shift+z", or bare modifiers such as "shift" that are held
@@ -73,6 +85,29 @@ struct KeyBinding {
         if key == nil && flags.isEmpty { return nil }
     }
 
+    /// The text `init` parses for a combination, or nil when the key has no name here.
+    static func spec(flags: CGEventFlags, key: CGKeyCode?) -> String? {
+        var parts = modifiers.filter { flags.contains($0.flag) }.map(\.name)
+        if let key {
+            guard let name = keyNames[key] else { return nil }
+            parts.append(name)
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: "+")
+    }
+
+    /// How the binding reads in the settings window, such as "⇧⌘Z" or "Hold ⇧".
+    var label: String {
+        let symbols = KeyBinding.modifiers.filter { flags.contains($0.flag) }.map(\.symbol).joined()
+        guard let key, let name = KeyBinding.keyNames[key] else { return "Hold " + symbols }
+        let isShort = name.count == 1 || (name.hasPrefix("f") && Int(name.dropFirst()) != nil)
+        return symbols + (KeyBinding.keyLabels[name] ?? (isShort ? name.uppercased() : name.capitalized))
+    }
+
+    // In the order macOS draws them.
+    private static let modifiers: [(flag: CGEventFlags, name: String, symbol: String)] = [
+        (.maskControl, "ctrl", "⌃"), (.maskAlternate, "opt", "⌥"), (.maskShift, "shift", "⇧"), (.maskCommand, "cmd", "⌘"),
+    ]
+
     // ANSI virtual key codes.
     static let keyCodes: [String: CGKeyCode] = [
         "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9, "b": 11,
@@ -81,5 +116,13 @@ struct KeyBinding {
         "u": 32, "[": 33, "i": 34, "p": 35, "return": 36, "l": 37, "j": 38, "'": 39, "k": 40,
         ";": 41, "\\": 42, ",": 43, "/": 44, "n": 45, "m": 46, ".": 47, "tab": 48, "space": 49,
         "`": 50, "delete": 51, "escape": 53, "left": 123, "right": 124, "down": 125, "up": 126,
+        "f1": 122, "f2": 120, "f3": 99, "f4": 118, "f5": 96, "f6": 97, "f7": 98, "f8": 100,
+        "f9": 101, "f10": 109, "f11": 103, "f12": 111, "home": 115, "end": 119, "pageup": 116,
+        "pagedown": 121, "forwarddelete": 117,
+    ]
+    private static let keyNames = Dictionary(uniqueKeysWithValues: keyCodes.map { ($1, $0) })
+    private static let keyLabels = [
+        "left": "←", "right": "→", "up": "↑", "down": "↓", "escape": "Esc",
+        "pageup": "Page Up", "pagedown": "Page Down", "forwarddelete": "Forward Delete",
     ]
 }

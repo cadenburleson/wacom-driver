@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-import AppKit
+import Foundation
 
 /// Keeps the driver running in the background through a per-user LaunchAgent that points
 /// back at this executable.
@@ -13,6 +13,20 @@ enum LoginItem {
 
     struct Failure: LocalizedError {
         let errorDescription: String?
+    }
+
+    /// Whether launchd is already running the driver from this copy of the app.
+    static var isCurrent: Bool {
+        guard let agent = NSDictionary(contentsOf: agentURL),
+              let arguments = agent["ProgramArguments"] as? [String] else { return false }
+        return arguments.first == Bundle.main.executablePath && launchctl("print", "\(domain)/\(label)") == 0
+    }
+
+    /// Whether the app has Accessibility. Asked of a fresh process, because a running one
+    /// never sees a grant that arrived after it started.
+    static var isTrusted: Bool {
+        guard let executable = Bundle.main.executablePath else { return false }
+        return run(executable, ["--trusted"]) == 0
     }
 
     /// Starts the driver now and at every login, replacing any copy already running.
@@ -48,54 +62,6 @@ enum LoginItem {
         launchctl("bootout", "\(domain)/\(label)")
         try? FileManager.default.removeItem(at: agentURL)
         run("/usr/bin/tccutil", ["reset", "Accessibility", label])
-    }
-
-    /// What opening the app does: start the driver, then say what happens next.
-    static func showManager() {
-        let app = NSApplication.shared
-        app.setActivationPolicy(.accessory)
-        app.activate(ignoringOtherApps: true)
-
-        // A freshly downloaded app runs from a random read-only path until it is moved.
-        if Bundle.main.bundlePath.contains("/AppTranslocation/") {
-            alert("Move WacomDriver to Applications first",
-                  "macOS is running this copy from a temporary location. Drag WacomDriver into your Applications folder, then open it from there.")
-            return
-        }
-        do {
-            try install()
-        } catch {
-            alert("WacomDriver could not start", error.localizedDescription)
-            return
-        }
-
-        let choice = alert(
-            "WacomDriver is running",
-            """
-            It works in the background and starts when you log in.
-
-            The first time, macOS asks for Accessibility permission, which the driver needs to move the cursor: turn on WacomDriver in System Settings → Privacy & Security → Accessibility.
-            """,
-            buttons: ["OK", "Open Accessibility Settings", "Uninstall"])
-        switch choice {
-        case .alertSecondButtonReturn:
-            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-        case .alertThirdButtonReturn:
-            uninstall()
-            alert("WacomDriver is uninstalled",
-                  "You can now move it to the Trash. Unplug the tablet and plug it back in to use it as a basic mouse.")
-        default:
-            break
-        }
-    }
-
-    @discardableResult
-    private static func alert(_ title: String, _ text: String, buttons: [String] = ["OK"]) -> NSApplication.ModalResponse {
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.informativeText = text
-        buttons.forEach { alert.addButton(withTitle: $0) }
-        return alert.runModal()
     }
 
     @discardableResult
