@@ -1,14 +1,20 @@
 # wacom-driver
 
+<p align="center">
+  <a href="https://github.com/cadenburleson/wacom-driver/releases/latest/download/WacomDriver.dmg"><img src="docs/icon.png" width="128" alt="WacomDriver icon"></a>
+</p>
+<h2 align="center"><a href="https://github.com/cadenburleson/wacom-driver/releases/latest/download/WacomDriver.dmg">Download WacomDriver</a></h2>
+<p align="center">
+  For macOS 13 or later. Open the download and drag WacomDriver to Applications;
+  <a href="#install">Install</a> has the full steps.
+</p>
+
 An open-source macOS driver for Wacom's 2015 Intuos pen tablets, written after Wacom's own
 driver kept crashing on macOS 27.
 
 It reads the tablet's raw USB reports and posts the pen as real tablet events, so apps get
 absolute positioning, pressure and eraser detection. It runs entirely in user space: no
 kernel or system extension, no network access, and nothing is written to the tablet.
-
-**[Download WacomDriver](https://github.com/cadenburleson/wacom-driver/releases/latest/download/WacomDriver.dmg)**
-for macOS 13 or later, then see [Install](#install).
 
 This is an unofficial project and is not affiliated with or endorsed by Wacom. "Wacom" and
 "Intuos" are trademarks of Wacom Co., Ltd.
